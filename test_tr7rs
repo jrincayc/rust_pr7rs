@@ -81,3 +81,5 @@
 ((lambda x (define a (+ (car x) 2)) a) 3)
 ((lambda (x) (define a (+ x 3)) a) 6)
 (let ((a 2) (b 3)) (+ a b))
+(+ 41
+1)

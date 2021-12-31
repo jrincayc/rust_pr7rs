@@ -124,10 +124,16 @@ fn atom(token: &str) -> Token {
     Token::str(token)
 }
 
-fn read_from_tokens<'a>(tokens: &Vec<&'a str>, index: &mut usize) -> Option<Token> {
+enum ParseOption {
+    None,
+    Partial,
+    Some(Token),
+}
+
+fn read_from_tokens<'a>(tokens: &Vec<&'a str>, index: &mut usize) -> ParseOption {
     if tokens.len() == 0 {
         println!("Unexpected end of program");
-        return None
+        return ParseOption::None
     };
     //let mut index: usize = 0;
     let first = tokens[*index];
@@ -136,38 +142,48 @@ fn read_from_tokens<'a>(tokens: &Vec<&'a str>, index: &mut usize) -> Option<Toke
         let mut token_list = vec![];
         loop {
             *index += 1;
+            if *index >= tokens.len() {
+                //No closing ), so probably need to read more input
+                return ParseOption::Partial
+            }
             if tokens[*index] == ")" {break};
             let result = read_from_tokens(tokens,index);
             //println!("result {}",result);
             match result {
-                Some(value) =>
+                ParseOption::Some(value) =>
                     token_list.push(value),
-                None => {println!("Failed above");
-                         return None;}
+                ParseOption::None => {println!("Failed above");
+                                      return ParseOption::None;},
+                ParseOption::Partial => {
+                    return ParseOption::Partial;
+                }
             }
         }
         //*index += 1; //Remove ")"
-        return Some(Token::TokenList(token_list));
+        return ParseOption::Some(Token::TokenList(token_list));
     } else if first == "'" {
         *index += 1;
         let result = read_from_tokens(tokens, index);
         match result {
-            Some(value) => {
-                return Some(Token::QuoteToken(Box::new(value)));
+            ParseOption::Some(value) => {
+                return ParseOption::Some(Token::QuoteToken(Box::new(value)));
             }
-            None => {println!("Failed after quote");
-                     return None;
+            ParseOption::None => {println!("Failed after quote");
+                     return ParseOption::None;
+            }
+            ParseOption::Partial => {
+                return ParseOption::Partial;
             }
         }
     } else if first == ")" {
         println!("Syntax error unexpected )");
-        return None; }
+        return ParseOption::None; }
     else {
-        return Some(atom(first));
+        return ParseOption::Some(atom(first));
     }
 }
 
-fn parse(program: &str) ->  Option<Token> {
+fn parse(program: &str) ->  ParseOption {
     let mut index = 0;
     read_from_tokens(&tokenize(program), &mut index)
 }
@@ -961,9 +977,12 @@ fn main() {
     //println!("initial env {:?}",env);
 
     let mut env: REnv = Rc::new(Env::new(init_env));
+    let mut current_parse = String::new();
 
     loop {
-        println!("READY ");
+        if current_parse.len() == 0 {
+            println!("READY ");
+        }
         let mut line = String::new();
 
         let input_result = io::stdin()
@@ -975,16 +994,21 @@ fn main() {
             _ => {
                 lines.push(line);
                 let last_line = lines.last().expect("line");
-                if let Some(ref parsed) = parse(last_line.as_str()) {
-                    let (new_env, value) = eval_both(parsed,&env);
-                    env = new_env;
-                    println!("{:?}",value);
-                } else {
-                    println!("Nothing");
+                current_parse.push_str(last_line);
+                match parse(&current_parse) {
+                    ParseOption::Some(ref parsed) => {
+                        let (new_env, value) = eval_both(parsed,&env);
+                        env = new_env;
+                        println!("{:?}",value);
+                        current_parse.clear();
+                    },
+                    ParseOption::Partial => { /*should get more input*/ },
+                    ParseOption::None => {
+                        println!("Nothing");
+                        current_parse.clear();
+                    }
                 }
             }
-
         }
     }
-
 }
