@@ -1,170 +1,86 @@
-READY 
-Unexpected end of program
+> Unexpected end of program
 Nothing
-READY 
-2
-READY 
-6
-READY 
-6
-READY 
-#f
-READY 
-1
-READY 
-(1 2 3)
-READY 
-1
-READY 
-(2 3)
-READY 
-(1 2 3)
-READY 
-((1 2) 3 4)
-READY 
-Undefined
-READY 
-1
-READY 
-(2)
-READY 
-#t
-READY 
-#f
-READY 
-#f
-READY 
-Undefined
-READY 
-Undefined
-READY 
-2
-READY 
-5
-READY 
-Undefined
-READY 
-Undefined
-READY 
-Error(token not found in env)
-READY 
-3628800
-READY 
-3
-READY 
-Undefined
-READY 
-Undefined
-READY 
-Undefined
-READY 
-Undefined
-READY 
-3628800
-READY 
-Undefined
-READY 
-7
-READY 
-Undefined
-READY 
-Undefined
-READY 
-12
-READY 
-12
-READY 
-a
-READY 
-(1 a)
-READY 
-a
-READY 
-(a b)
-READY 
-(a b c)
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#t
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-greater
-READY 
-less
-READY 
-Undefined
-READY 
-equal
-READY 
-#t
-READY 
-#t
-READY 
-#t
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-Undefined
-READY 
-Undefined
-READY 
-Undefined
-READY 
-3628800
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-#t
-READY 
-#f
-READY 
-7
-READY 
-Undefined
-READY 
--12
-READY 
-Undefined
-READY 
-4
-READY 
-5
-READY 
-9
-READY 
-5
-READY 
-42
-READY 
+> 2
+> 6
+> 6
+> #f
+> 1
+> (1 2 3)
+> 1
+> (2 3)
+> (1 2 3)
+> ((1 2) 3 4)
+> Undefined
+> 1
+> (2)
+> #t
+> #f
+> #f
+> Undefined
+> Undefined
+> 2
+> 5
+> Undefined
+> Undefined
+> Error(token not found in env)
+> 3628800
+> 3
+> Undefined
+> Undefined
+> Undefined
+> Undefined
+> 3628800
+> Undefined
+> 7
+> Undefined
+> Undefined
+> 12
+> 12
+> a
+> (1 a)
+> a
+> (a b)
+> (a b c)
+> #t
+> #f
+> #t
+> #f
+> #t
+> #f
+> #t
+> #t
+> #t
+> #f
+> #t
+> #f
+> greater
+> less
+> Undefined
+> equal
+> #t
+> #t
+> #t
+> #t
+> #f
+> #t
+> #f
+> Undefined
+> Undefined
+> Undefined
+> 3628800
+> #t
+> #f
+> #t
+> #f
+> #t
+> #f
+> 7
+> Undefined
+> -12
+> Undefined
+> 4
+> 5
+> 9
+> 5
+> 42
+> 

@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern crate core;
 use core::fmt;
 use std::io;
+use std::io::Write;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -981,7 +982,8 @@ fn main() {
 
     loop {
         if current_parse.len() == 0 {
-            println!("READY ");
+            print!("> ");
+            let _ = std::io::stdout().flush();
         }
         let mut line = String::new();
 
@@ -1011,4 +1013,5 @@ fn main() {
             }
         }
     }
+    println!("");
 }
