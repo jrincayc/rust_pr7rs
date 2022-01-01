@@ -95,7 +95,7 @@ fn tokenize(chars: &str) -> Vec<&str> {
                 in_comment = false;
             },
             _ if in_comment => buffer_len = 0,
-            ' '  =>
+            ' ' | '\t'  =>
                 switch_token(&mut tokens,chars,buffer_start,&mut buffer_len),
             '(' =>
               {switch_token(&mut tokens,chars,buffer_start,&mut buffer_len);
