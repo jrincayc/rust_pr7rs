@@ -702,25 +702,16 @@ fn use_y_combiner(procedure: &Procedure, name: String) -> Rc<Value> {
     //and then make new procedure
     //(Y1 Original procedure)
     let size = procedure.params.len();
-    let mut args:Vec<Token> = Vec::new();
-    for i in 0..size {
-        args.push(Token::StringToken(String::from("#X")+&i.to_string()));
-    }
+    let args:Vec<Token> = vec![Token::str("#X0")];
     let ff = Token::TokenList(
         vec![Token::str("f"),
              Token::str("f")
              ]);
-    let self_call = if procedure.fixed_num {
+    let self_call = {
         let mut extra = vec![Token::str("apply"),ff];
         extra.extend(args.clone());
         vec![Token::str("lambda"),
              args[0].clone(),
-             Token::TokenList(extra)]
-    } else {
-        let mut extra = vec![ff];
-        extra.extend(args.clone());
-        vec![Token::str("lambda"),
-             Token::TokenList(args.clone()),
              Token::TokenList(extra)]
     };
     let new_tokens = Token::TokenList(
