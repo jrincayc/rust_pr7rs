@@ -236,3 +236,13 @@ x
 (assq 'a e)
 (assq 'b e)
 (assq 'd e)
+(let ((Y (lambda (phi)
+	   ((lambda (f) (f f))
+	    (lambda (f)
+	      (phi (lambda x (apply (f f) x))))))))
+  (let ((fact
+	 (Y (lambda (fact)
+	      (lambda (n)
+		(if (< n 2) 1
+		    (* n (fact (- n 1)))))))))
+    (fact 5)))
