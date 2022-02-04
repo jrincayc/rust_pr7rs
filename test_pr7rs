@@ -246,3 +246,8 @@ x
 		(if (< n 2) 1
 		    (* n (fact (- n 1)))))))))
     (fact 5)))
+; stack test
+(define loop (lambda (x y) (if (< x y) x (loop (- x 1) y))))
+(loop 10 0)
+(loop 406 0)
+;(loop 432 0) fails
