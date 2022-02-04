@@ -349,13 +349,17 @@ impl Procedure {
 
     fn call(& self,list: Vec<Rc<Value>>) -> Rc<Value> {
         //let env = Rc::new(RefCell::new(Env::new_sub(self.outer_env.clone())));
-        if !self.fixed_num && self.params.len() != list.len() {
+        if self.param_length_mismatch(&list) {
             Rc::new(Value::Error(String::from("parameter length mismatch")))
         } else
         {
             let (exp, env) = self.call_backend(list);
             eval_exp(&exp, &env)
         }
+    }
+
+    fn param_length_mismatch(& self, list: &Vec<Rc<Value>>) -> bool {
+        !self.fixed_num && self.params.len() != list.len()
     }
 
     fn call_backend(& self,list: Vec<Rc<Value>>) -> (Rc<Token>, Rc<Env>) {
@@ -800,11 +804,11 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
 fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
  -> Rc<Value>
 {
-    let mut token = token_orig;
-    let mut env = env_orig;
+    let mut token = Rc::new(token_orig.clone());
+    let mut env = Rc::clone(env_orig);
     loop {
         //println!("eval_exp {:?}", token);
-        let eval = match token {
+        let eval = match &*token {
             &Token::IntegerToken(value) => Rc::new(Value::Integer(value)),
             &Token::StringToken(ref value) => match env.find(&value) {
                 Some(entry) => entry,
@@ -814,10 +818,10 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
             &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
             &Token::TokenList(ref list) => match list as &[Token] {
                 [Token::StringToken(ref string), ref test, ref consequent, ref alternate] if string == "if" => {
-                    if_fn(test, consequent, Some(alternate), env)
+                    if_fn(test, consequent, Some(alternate), &env)
                 },
                 [Token::StringToken(ref string), ref test, ref consequent] if string == "if" => {
-                    if_fn(test, consequent, None, env)
+                    if_fn(test, consequent, None, &env)
                 },
                 [Token::StringToken(ref string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
                 [Token::StringToken(ref string), Token::TokenList(ref test1), ..] if string == "cond" && test1.len() == 2 =>
@@ -827,30 +831,30 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         in_else = cond_start == "else";
                     }
                     if in_else {
-                        eval_exp(&test1[1], env)
+                        eval_exp(&test1[1], &env)
                     } else if list.len() > 2 {
                         let mut rest:Vec<Token>  = Vec::new();
                         rest.push(Token::str("cond"));
                         rest.extend_from_slice(&list[2..]);
-                        if_fn(&test1[0], &test1[1], Some(&Token::TokenList(rest)), env)
+                        if_fn(&test1[0], &test1[1], Some(&Token::TokenList(rest)), &env)
                     } else {
-                        if_fn(&test1[0], &test1[1], None, env)
+                        if_fn(&test1[0], &test1[1], None, &env)
                     }
                 },
                 [Token::StringToken(ref string)] if string == "and" =>
                     Rc::new(Value::Boolean(true)),
-                [Token::StringToken(ref string), ref test1] if string == "and" => eval_exp(test1, env),
+                [Token::StringToken(ref string), ref test1] if string == "and" => eval_exp(test1, &env),
                 [Token::StringToken(ref string), ref test1, ..] if string == "and" =>
                 {
                     let mut rest:Vec<Token> = Vec::new();
                     rest.push(Token::str("and"));
                     rest.extend_from_slice(&list[2..]);
-                    if_fn(&test1, &Token::TokenList(rest), Some(&Token::str("#f")), env)
+                    if_fn(&test1, &Token::TokenList(rest), Some(&Token::str("#f")), &env)
                 },
                 [Token::StringToken(ref string)] if string == "or" =>
                     Rc::new(Value::Boolean(false)),
                 [Token::StringToken(ref string), ref test1] if string == "or" =>
-                    eval_exp(test1, env),
+                    eval_exp(test1, &env),
                 [Token::StringToken(ref string), ref test1, rest @ ..] if string == "or" =>
                 {
                     let mut transformed:Vec<Token> = vec![Token::str("let")];
@@ -863,7 +867,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                     transformed.push(Token::TokenList(vec![
                         Token::str("if"),Token::str("#x"),Token::str("#x"),
                         Token::TokenList(rest_or)]));
-                    eval_exp(&Token::TokenList(transformed), env)
+                    eval_exp(&Token::TokenList(transformed), &env)
                 }
                 [Token::StringToken(ref string), Token::StringToken(ref param), ref body] if string == "lambda" => {
                     Rc::new(Value::Procedure(Procedure::new_single(String::from(param),Rc::new(body.clone()),env.clone())))
@@ -924,28 +928,36 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                     }
                     transformed.push(Token::TokenList(lambda_transform));
                     transformed.extend(inits);
-                    eval_exp(&Token::TokenList(transformed), env)
+                    eval_exp(&Token::TokenList(transformed), &env)
                 }
                 [] => Rc::new(Value::Undefined),
                 full_token =>
                     if let Some((head, tail)) = full_token.split_first() {
                         //[ref head, tail..] => {
-                        //println!("Evaluating {:?} in env {:?}\n",head,env);
-                        let head_eval = eval_exp(head,env);
-                        //println!("Evaluated {:?} in env {:?}\n",head_eval,env);
-                        //tail.iter().map(|t| eval_exp(t,env).expect("Got none")).collect();
+                        //println!("Evaluating {:?} in &env {:?}\n",head,&env);
+                        let head_eval = eval_exp(head,&env);
+                        //println!("Evaluated {:?} in env {:?}\n",head_eval,&env);
+                        //tail.iter().map(|t| eval_exp(t,&env).expect("Got none")).collect();
                         let mut tail_eval: Vec<Rc<Value>> = vec![];
                         for item in tail.iter() {
-                            let ret = eval_exp(item,env);
+                            let ret = eval_exp(item,&env);
                             //println!("debug {:?}",item);
                             tail_eval.push(ret);
                         }
-                        //let tail1_eval = eval_exp(tail1, env).expect("Got none1");
+                        //let tail1_eval = eval_exp(tail1, &env).expect("Got none1");
                         match &*head_eval {
                             Value::Function(func) =>
                                 func(tail_eval),
-                            Value::Procedure(procedure) =>
-                                procedure.call(tail_eval),
+                            Value::Procedure(procedure) => {
+                                if procedure.param_length_mismatch(&tail_eval) {
+                                    Rc::new(Value::Error(String::from("parameter length mismatch")))
+                                } else {
+                                    let (sub_token, sub_env) = procedure.call_backend(tail_eval);
+                                    //eval_exp(&sub_exp, &sub_env)
+                                    env = Rc::clone(&sub_env);
+                                    token = sub_token;
+                                    continue;
+                                }},
                             _ => head_eval
                         }
                     } else {
