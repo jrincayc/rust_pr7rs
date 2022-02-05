@@ -697,6 +697,20 @@ fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, e
     }
 }
 
+fn if_backend(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, env: &REnv)
+              -> Option<Rc<Token>>
+{
+    let test_eval = eval_exp(test,env);
+    if truish(test_eval) {
+        Some(Rc::new(consequent.clone()))
+    } else {
+        match optional_alternate {
+            Some(alternate) => Some(Rc::new(alternate.clone())),
+            None => None
+        }
+    }
+}
+
 fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
 {
       match token {
@@ -818,10 +832,22 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
             &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
             &Token::TokenList(ref list) => match list as &[Token] {
                 [Token::StringToken(ref string), ref test, ref consequent, ref alternate] if string == "if" => {
-                    if_fn(test, consequent, Some(alternate), &env)
+                    match if_backend(test, consequent, Some(alternate), &env) {
+                        Some(result_token) => {
+                            token = result_token;
+                            continue;
+                        },
+                        None => Rc::new(Value::Undefined)
+                    }
                 },
                 [Token::StringToken(ref string), ref test, ref consequent] if string == "if" => {
-                    if_fn(test, consequent, None, &env)
+                    match if_backend(test, consequent, None, &env) {
+                        Some(result_token) => {
+                            token = result_token;
+                            continue;
+                        },
+                        None => Rc::new(Value::Undefined)
+                    }
                 },
                 [Token::StringToken(ref string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
                 [Token::StringToken(ref string), Token::TokenList(ref test1), ..] if string == "cond" && test1.len() == 2 =>
