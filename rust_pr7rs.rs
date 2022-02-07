@@ -199,6 +199,7 @@ enum Value {
     Undefined,
     EmptyList,
     Procedure(Procedure),
+    Partial(Rc<Token>, Rc<Env>), //Needs to be evaluated
     Error(String)
 }
 
@@ -243,6 +244,8 @@ impl<'a> fmt::Debug for Value {
             &Value::EmptyList => result = result.and(write!(f, "()")),
             &Value::Undefined =>
                 result = result.and(write!(f, "Undefined")),
+            &Value::Partial(_, _) =>
+                result = result.and(write!(f, "<partial>")),
             &Value::Error(ref value) =>
                 result = result.and(write!(f, "Error({})", value))
         }
@@ -650,7 +653,8 @@ fn apply(list: Vec<Rc<Value>>) -> Rc<Value> {
         match [&*first, &*second] {
             [Value::Procedure(procedure), pair @ Value::Pair(_, _)] => {
                 if let Some(list) = pair_to_list(pair) {
-                    procedure.call(list)
+                    let (sub_token, sub_env) = procedure.call_backend(list);
+                    Rc::new(Value::Partial(sub_token, sub_env))
                 } else {
                     Rc::new(Value::Error(String::from("apply requires function and proper list")))
                 }
@@ -991,7 +995,12 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                     }
             }
         };
-        return eval;
+        if let Value::Partial(ref sub_token, ref sub_env) = *eval {
+            env = Rc::clone(&sub_env);
+            token = sub_token.clone();
+        } else {
+            return eval;
+        }
     }
 }
 
