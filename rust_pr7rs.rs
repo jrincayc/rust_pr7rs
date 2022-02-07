@@ -350,28 +350,12 @@ impl Procedure {
         }
     }
 
-    fn call(& self,list: Vec<Rc<Value>>) -> Rc<Value> {
-        //let env = Rc::new(RefCell::new(Env::new_sub(self.outer_env.clone())));
-        if self.param_length_mismatch(&list) {
+    fn call_partial(& self,list: Vec<Rc<Value>>) -> Rc<Value> {
+        if !self.fixed_num && self.params.len() != list.len() {
             Rc::new(Value::Error(String::from("parameter length mismatch")))
         } else
         {
-            let (exp, env) = self.call_backend(list);
-            eval_exp(&exp, &env)
-        }
-    }
-
-    fn param_length_mismatch(& self, list: &Vec<Rc<Value>>) -> bool {
-        !self.fixed_num && self.params.len() != list.len()
-    }
-
-    fn call_backend(& self,list: Vec<Rc<Value>>) -> (Rc<Token>, Rc<Env>) {
-        let mut new_env : PartialEnv = PartialEnv::new();
-        //let env = Rc::new(RefCell::new(Env::new_sub(self.outer_env.clone())));
-        /*if !self.fixed_num && self.params.len() != list.len() {
-            Rc::new(Value::Error(String::from("parameter length mismatch")))
-        } else
-        {*/
+            let mut new_env : PartialEnv = PartialEnv::new();
             if self.fixed_num {
                 new_env.insert(self.params[0].clone(), Rc::clone(&make_list(list)));
             } else {
@@ -385,14 +369,14 @@ impl Procedure {
                 for token in &self.declarations {
                     env_rc = eval_dec(&token, &env_rc);
                 }
-                (Rc::clone(&self.body), env_rc)
+                Rc::new(Value::Partial(Rc::clone(&self.body), env_rc))
                     //eval_exp(&self.body, &env_rc)
             } else {
                 //println!("calling with env {:?}\n",env);
                 //eval_exp(&self.body, &Rc::new(env))
-                (Rc::clone(&self.body), Rc::new(env))
+                Rc::new(Value::Partial(Rc::clone(&self.body), Rc::new(env)))
             }
-        //}
+        }
     }
 }
 
@@ -653,8 +637,7 @@ fn apply(list: Vec<Rc<Value>>) -> Rc<Value> {
         match [&*first, &*second] {
             [Value::Procedure(procedure), pair @ Value::Pair(_, _)] => {
                 if let Some(list) = pair_to_list(pair) {
-                    let (sub_token, sub_env) = procedure.call_backend(list);
-                    Rc::new(Value::Partial(sub_token, sub_env))
+                    procedure.call_partial(list)
                 } else {
                     Rc::new(Value::Error(String::from("apply requires function and proper list")))
                 }
@@ -978,16 +961,8 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         match &*head_eval {
                             Value::Function(func) =>
                                 func(tail_eval),
-                            Value::Procedure(procedure) => {
-                                if procedure.param_length_mismatch(&tail_eval) {
-                                    Rc::new(Value::Error(String::from("parameter length mismatch")))
-                                } else {
-                                    let (sub_token, sub_env) = procedure.call_backend(tail_eval);
-                                    //eval_exp(&sub_exp, &sub_env)
-                                    env = Rc::clone(&sub_env);
-                                    token = sub_token;
-                                    continue;
-                                }},
+                            Value::Procedure(procedure) =>
+                                procedure.call_partial(tail_eval),
                             _ => head_eval
                         }
                     } else {
