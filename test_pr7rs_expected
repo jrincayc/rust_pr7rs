@@ -197,4 +197,9 @@ Nothing
 > (b 2)
 > #f
 > 120
+> Unexpected end of program
+Nothing
+> Undefined
+> -1
+> -1
 > 

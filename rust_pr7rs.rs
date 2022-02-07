@@ -199,6 +199,7 @@ enum Value {
     Undefined,
     EmptyList,
     Procedure(Procedure),
+    Partial(Rc<Token>, Rc<Env>), //Needs to be evaluated
     Error(String)
 }
 
@@ -243,6 +244,8 @@ impl<'a> fmt::Debug for Value {
             &Value::EmptyList => result = result.and(write!(f, "()")),
             &Value::Undefined =>
                 result = result.and(write!(f, "Undefined")),
+            &Value::Partial(_, _) =>
+                result = result.and(write!(f, "<partial>")),
             &Value::Error(ref value) =>
                 result = result.and(write!(f, "Error({})", value))
         }
@@ -347,13 +350,12 @@ impl Procedure {
         }
     }
 
-    fn call(& self,list: Vec<Rc<Value>>) -> Rc<Value> {
-        let mut new_env : PartialEnv = PartialEnv::new();
-        //let env = Rc::new(RefCell::new(Env::new_sub(self.outer_env.clone())));
+    fn call_partial(& self,list: Vec<Rc<Value>>) -> Rc<Value> {
         if !self.fixed_num && self.params.len() != list.len() {
             Rc::new(Value::Error(String::from("parameter length mismatch")))
         } else
         {
+            let mut new_env : PartialEnv = PartialEnv::new();
             if self.fixed_num {
                 new_env.insert(self.params[0].clone(), Rc::clone(&make_list(list)));
             } else {
@@ -367,10 +369,12 @@ impl Procedure {
                 for token in &self.declarations {
                     env_rc = eval_dec(&token, &env_rc);
                 }
-                eval_exp(&self.body, &env_rc)
+                Rc::new(Value::Partial(Rc::clone(&self.body), env_rc))
+                    //eval_exp(&self.body, &env_rc)
             } else {
                 //println!("calling with env {:?}\n",env);
-                eval_exp(&self.body, &Rc::new(env))
+                //eval_exp(&self.body, &Rc::new(env))
+                Rc::new(Value::Partial(Rc::clone(&self.body), Rc::new(env)))
             }
         }
     }
@@ -633,7 +637,7 @@ fn apply(list: Vec<Rc<Value>>) -> Rc<Value> {
         match [&*first, &*second] {
             [Value::Procedure(procedure), pair @ Value::Pair(_, _)] => {
                 if let Some(list) = pair_to_list(pair) {
-                    procedure.call(list)
+                    procedure.call_partial(list)
                 } else {
                     Rc::new(Value::Error(String::from("apply requires function and proper list")))
                 }
@@ -671,10 +675,11 @@ fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, e
 {
     let test_eval = eval_exp(test,env);
     if truish(test_eval) {
-        eval_exp(consequent, env)
+        Rc::new(Value::Partial(Rc::new(consequent.clone()), Rc::clone(env)))
+        //eval_exp(consequent, env)
     } else {
         match optional_alternate {
-            Some(alternate) => eval_exp(alternate, env),
+            Some(alternate) => Rc::new(Value::Partial(Rc::new(alternate.clone()), Rc::clone(env))), //eval_exp(alternate, env),
             None => Rc::new(Value::Undefined)
         }
     }
@@ -784,157 +789,167 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
     }
 }
 
-fn eval_exp<'a,'b, 'c>(token: &Token, env: &REnv)
+fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
  -> Rc<Value>
 {
-    //println!("eval_exp {:?}", token);
-    match token {
-        &Token::IntegerToken(value) => Rc::new(Value::Integer(value)),
-        &Token::StringToken(ref value) => match env.find(&value) {
-            Some(entry) => entry,
-            None => {//println!("Can't find {:?} in {:?}",value, env);
-                Rc::new(Value::Error(String::from("token not found in env")))}
-        },
-        &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
-        &Token::TokenList(ref list) => match list as &[Token] {
-            [Token::StringToken(ref string), ref test, ref consequent, ref alternate] if string == "if" => {
-                if_fn(test, consequent, Some(alternate), env)
+    let mut token = Rc::new(token_orig.clone());
+    let mut env = Rc::clone(env_orig);
+    loop {
+        //println!("eval_exp {:?}", token);
+        let eval = match &*token {
+            &Token::IntegerToken(value) => Rc::new(Value::Integer(value)),
+            &Token::StringToken(ref value) => match env.find(&value) {
+                Some(entry) => entry,
+                None => {//println!("Can't find {:?} in {:?}",value, env);
+                    Rc::new(Value::Error(String::from("token not found in env")))}
             },
-            [Token::StringToken(ref string), ref test, ref consequent] if string == "if" => {
-                if_fn(test, consequent, None, env)
-            },
-            [Token::StringToken(ref string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
-            [Token::StringToken(ref string), Token::TokenList(ref test1), ..] if string == "cond" && test1.len() == 2 =>
-            {
-                let mut in_else = false;
-                if let Token::StringToken(ref cond_start) = test1[0]  {
-                    in_else = cond_start == "else";
-                }
-                if in_else {
-                    eval_exp(&test1[1], env)
-                } else if list.len() > 2 {
-                    let mut rest:Vec<Token>  = Vec::new();
-                    rest.push(Token::str("cond"));
-                    rest.extend_from_slice(&list[2..]);
-                    if_fn(&test1[0], &test1[1], Some(&Token::TokenList(rest)), env)
-                } else {
-                    if_fn(&test1[0], &test1[1], None, env)
-                }
-            },
-            [Token::StringToken(ref string)] if string == "and" =>
-                Rc::new(Value::Boolean(true)),
-            [Token::StringToken(ref string), ref test1] if string == "and" => eval_exp(test1, env),
-            [Token::StringToken(ref string), ref test1, ..] if string == "and" =>
-            {
-                let mut rest:Vec<Token> = Vec::new();
-                rest.push(Token::str("and"));
-                rest.extend_from_slice(&list[2..]);
-                if_fn(&test1, &Token::TokenList(rest), Some(&Token::str("#f")), env)
-            },
-            [Token::StringToken(ref string)] if string == "or" =>
-                Rc::new(Value::Boolean(false)),
-            [Token::StringToken(ref string), ref test1] if string == "or" =>
-                eval_exp(test1, env),
-            [Token::StringToken(ref string), ref test1, rest @ ..] if string == "or" =>
-            {
-                let mut transformed:Vec<Token> = vec![Token::str("let")];
-                transformed.push(Token::TokenList(vec![
-                    Token::TokenList(vec![Token::str("#x"), test1.clone()])]));
-                let mut rest_or:Vec<Token> = vec![Token::str("or")];
-                for rest_item in rest {
-                    rest_or.push(rest_item.clone());
-                }
-                transformed.push(Token::TokenList(vec![
-                    Token::str("if"),Token::str("#x"),Token::str("#x"),
-                    Token::TokenList(rest_or)]));
-                eval_exp(&Token::TokenList(transformed), env)
-            }
-            [Token::StringToken(ref string), Token::StringToken(ref param), ref body] if string == "lambda" => {
-                Rc::new(Value::Procedure(Procedure::new_single(String::from(param),Rc::new(body.clone()),env.clone())))
-            }
-            [Token::StringToken(ref string), Token::StringToken(ref param), middle @ .., ref body] if string == "lambda" => {
-                let mut middle_vec: Vec<Rc<Token>> = Vec::new();
-                for dec in middle {
-                    middle_vec.push(Rc::new(dec.clone()));
-                }
-                Rc::new(Value::Procedure(Procedure::new_single_with_dec(String::from(param),Rc::new(body.clone()),middle_vec,env.clone())))
-            }
-            [Token::StringToken(ref string),Token::TokenList(ref parameters), ref body]
-                if string == "lambda" => {
-                    let mut param_eval: Vec<String> = vec![];
-                    for item in parameters.iter() {
-                        match item as &Token {
-                            &Token::StringToken(ref param) => param_eval.push(param.clone()),
-                            _ => return Rc::new(Value::Error(String::from("Non string in lambda parameter list")))
-                        }
-                    }
-                    Rc::new(Value::Procedure(Procedure::new(param_eval,Rc::new(body.clone()),env.clone())))
+            &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
+            &Token::TokenList(ref list) => match list as &[Token] {
+                [Token::StringToken(ref string), ref test, ref consequent, ref alternate] if string == "if" => {
+                    if_fn(test, consequent, Some(alternate), &env)
                 },
-            [Token::StringToken(ref string),Token::TokenList(ref parameters), middle @ .., ref body]
-                if string == "lambda" => {
+                [Token::StringToken(ref string), ref test, ref consequent] if string == "if" => {
+                    if_fn(test, consequent, None, &env)
+                },
+                [Token::StringToken(ref string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
+                [Token::StringToken(ref string), Token::TokenList(ref test1), ..] if string == "cond" && test1.len() == 2 =>
+                {
+                    let mut in_else = false;
+                    if let Token::StringToken(ref cond_start) = test1[0]  {
+                        in_else = cond_start == "else";
+                    }
+                    if in_else {
+                        eval_exp(&test1[1], &env)
+                    } else if list.len() > 2 {
+                        let mut rest:Vec<Token>  = Vec::new();
+                        rest.push(Token::str("cond"));
+                        rest.extend_from_slice(&list[2..]);
+                        if_fn(&test1[0], &test1[1], Some(&Token::TokenList(rest)), &env)
+                    } else {
+                        if_fn(&test1[0], &test1[1], None, &env)
+                    }
+                },
+                [Token::StringToken(ref string)] if string == "and" =>
+                    Rc::new(Value::Boolean(true)),
+                [Token::StringToken(ref string), ref test1] if string == "and" => eval_exp(test1, &env),
+                [Token::StringToken(ref string), ref test1, ..] if string == "and" =>
+                {
+                    let mut rest:Vec<Token> = Vec::new();
+                    rest.push(Token::str("and"));
+                    rest.extend_from_slice(&list[2..]);
+                    if_fn(&test1, &Token::TokenList(rest), Some(&Token::str("#f")), &env)
+                },
+                [Token::StringToken(ref string)] if string == "or" =>
+                    Rc::new(Value::Boolean(false)),
+                [Token::StringToken(ref string), ref test1] if string == "or" =>
+                    eval_exp(test1, &env),
+                [Token::StringToken(ref string), ref test1, rest @ ..] if string == "or" =>
+                {
+                    let mut transformed:Vec<Token> = vec![Token::str("let")];
+                    transformed.push(Token::TokenList(vec![
+                        Token::TokenList(vec![Token::str("#x"), test1.clone()])]));
+                    let mut rest_or:Vec<Token> = vec![Token::str("or")];
+                    for rest_item in rest {
+                        rest_or.push(rest_item.clone());
+                    }
+                    transformed.push(Token::TokenList(vec![
+                        Token::str("if"),Token::str("#x"),Token::str("#x"),
+                        Token::TokenList(rest_or)]));
+                    eval_exp(&Token::TokenList(transformed), &env)
+                }
+                [Token::StringToken(ref string), Token::StringToken(ref param), ref body] if string == "lambda" => {
+                    Rc::new(Value::Procedure(Procedure::new_single(String::from(param),Rc::new(body.clone()),env.clone())))
+                }
+                [Token::StringToken(ref string), Token::StringToken(ref param), middle @ .., ref body] if string == "lambda" => {
                     let mut middle_vec: Vec<Rc<Token>> = Vec::new();
                     for dec in middle {
                         middle_vec.push(Rc::new(dec.clone()));
                     }
-                    let mut param_eval: Vec<String> = vec![];
-                    for item in parameters.iter() {
-                        match item as &Token {
-                            &Token::StringToken(ref param) => param_eval.push(param.clone()),
-                            _ => return Rc::new(Value::Error(String::from("Non string in lambda parameter list")))
+                    Rc::new(Value::Procedure(Procedure::new_single_with_dec(String::from(param),Rc::new(body.clone()),middle_vec,env.clone())))
+                }
+                [Token::StringToken(ref string),Token::TokenList(ref parameters), ref body]
+                    if string == "lambda" => {
+                        let mut param_eval: Vec<String> = vec![];
+                        for item in parameters.iter() {
+                            match item as &Token {
+                                &Token::StringToken(ref param) => param_eval.push(param.clone()),
+                                _ => return Rc::new(Value::Error(String::from("Non string in lambda parameter list")))
+                            }
+                        }
+                        Rc::new(Value::Procedure(Procedure::new(param_eval,Rc::new(body.clone()),env.clone())))
+                    },
+                [Token::StringToken(ref string),Token::TokenList(ref parameters), middle @ .., ref body]
+                    if string == "lambda" => {
+                        let mut middle_vec: Vec<Rc<Token>> = Vec::new();
+                        for dec in middle {
+                            middle_vec.push(Rc::new(dec.clone()));
+                        }
+                        let mut param_eval: Vec<String> = vec![];
+                        for item in parameters.iter() {
+                            match item as &Token {
+                                &Token::StringToken(ref param) => param_eval.push(param.clone()),
+                                _ => return Rc::new(Value::Error(String::from("Non string in lambda parameter list")))
+                            }
+                        }
+                        Rc::new(Value::Procedure(Procedure::new_with_dec(param_eval,Rc::new(body.clone()), middle_vec, env.clone())))
+                    },
+                [Token::StringToken(ref string),datum] if string == "quote" => {
+                    Rc::new(make_quote(datum))
+                }
+                [Token::StringToken(ref string), Token::TokenList(var_inits), body @ ..] if string == "let" => {
+                    let mut vars: Vec<Token> = Vec::new();
+                    let mut inits: Vec<Token> = Vec::new();
+                    for var_init in var_inits {
+                        if let Token::TokenList(inner_list) = var_init {
+                            vars.push(inner_list[0].clone());
+                            inits.push(inner_list[1].clone());
+                        } else {
+                            return  Rc::new(Value::Error(String::from("invalid let var init")))
                         }
                     }
-                    Rc::new(Value::Procedure(Procedure::new_with_dec(param_eval,Rc::new(body.clone()), middle_vec, env.clone())))
-                },
-            [Token::StringToken(ref string),datum] if string == "quote" => {
-                Rc::new(make_quote(datum))
-            }
-            [Token::StringToken(ref string), Token::TokenList(var_inits), body @ ..] if string == "let" => {
-                let mut vars: Vec<Token> = Vec::new();
-                let mut inits: Vec<Token> = Vec::new();
-                for var_init in var_inits {
-                    if let Token::TokenList(inner_list) = var_init {
-                        vars.push(inner_list[0].clone());
-                        inits.push(inner_list[1].clone());
+                    let mut transformed: Vec<Token> = Vec::new();
+                    let mut lambda_transform: Vec<Token> = Vec::new();
+                    lambda_transform.push(Token::str("lambda"));
+                    lambda_transform.push(Token::TokenList(vars));
+                    for body_item in body {
+                        lambda_transform.push(body_item.clone());
+                    }
+                    transformed.push(Token::TokenList(lambda_transform));
+                    transformed.extend(inits);
+                    eval_exp(&Token::TokenList(transformed), &env)
+                }
+                [] => Rc::new(Value::Undefined),
+                full_token =>
+                    if let Some((head, tail)) = full_token.split_first() {
+                        //[ref head, tail..] => {
+                        //println!("Evaluating {:?} in &env {:?}\n",head,&env);
+                        let head_eval = eval_exp(head,&env);
+                        //println!("Evaluated {:?} in env {:?}\n",head_eval,&env);
+                        //tail.iter().map(|t| eval_exp(t,&env).expect("Got none")).collect();
+                        let mut tail_eval: Vec<Rc<Value>> = vec![];
+                        for item in tail.iter() {
+                            let ret = eval_exp(item,&env);
+                            //println!("debug {:?}",item);
+                            tail_eval.push(ret);
+                        }
+                        //let tail1_eval = eval_exp(tail1, &env).expect("Got none1");
+                        match &*head_eval {
+                            Value::Function(func) =>
+                                func(tail_eval),
+                            Value::Procedure(procedure) =>
+                                procedure.call_partial(tail_eval),
+                            _ => head_eval
+                        }
                     } else {
-                        return  Rc::new(Value::Error(String::from("invalid let var init")))
+                        Rc::new(Value::Error(String::from("impossible")))
                     }
-                }
-                let mut transformed: Vec<Token> = Vec::new();
-                let mut lambda_transform: Vec<Token> = Vec::new();
-                lambda_transform.push(Token::str("lambda"));
-                lambda_transform.push(Token::TokenList(vars));
-                for body_item in body {
-                    lambda_transform.push(body_item.clone());
-                }
-                transformed.push(Token::TokenList(lambda_transform));
-                transformed.extend(inits);
-                eval_exp(&Token::TokenList(transformed), env)
             }
-            [] => Rc::new(Value::Undefined),
-            full_token =>
-                if let Some((head, tail)) = full_token.split_first() {
-                //[ref head, tail..] => {
-                    //println!("Evaluating {:?} in env {:?}\n",head,env);
-                    let head_eval = eval_exp(head,env);
-                    //println!("Evaluated {:?} in env {:?}\n",head_eval,env);
-                    //tail.iter().map(|t| eval_exp(t,env).expect("Got none")).collect();
-                    let mut tail_eval: Vec<Rc<Value>> = vec![];
-                    for item in tail.iter() {
-                        let ret = eval_exp(item,env);
-                        //println!("debug {:?}",item);
-                        tail_eval.push(ret);
-                    }
-                    //let tail1_eval = eval_exp(tail1, env).expect("Got none1");
-                    match &*head_eval {
-                        Value::Function(func) =>
-                            func(tail_eval),
-                        Value::Procedure(procedure) =>
-                            procedure.call(tail_eval),
-                        _ => head_eval
-                    }
-                } else {
-                    Rc::new(Value::Error(String::from("impossible")))
-                }
+        };
+        if let Value::Partial(ref sub_token, ref sub_env) = *eval {
+            env = Rc::clone(&sub_env);
+            token = sub_token.clone();
+        } else {
+            return eval;
         }
     }
 }

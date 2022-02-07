@@ -246,3 +246,7 @@ x
 		(if (< n 2) 1
 		    (* n (fact (- n 1)))))))))
     (fact 5)))
+; stack test (check that no stack used on recursive call) (loop 1000000 0)
+(define loop (lambda (x y) (if (< x y) x (loop (- x 1) y))))
+(loop 10 0)
+(loop 2000 0)
