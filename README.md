@@ -1,4 +1,4 @@
-# rust_tr7rs
+# rust_pr7rs
 A partial implementation of r7rs-pico (previously named r7rs-tiny)
 
 This was created as part of r7rs-pico for testing various parts of the
