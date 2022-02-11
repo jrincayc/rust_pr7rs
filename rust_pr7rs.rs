@@ -36,7 +36,8 @@ enum Token{
     IntegerToken(i64),
     StringToken(String),
     TokenList(Vec<Token>),
-    QuoteToken(Box<Token>)
+    QuoteToken(Box<Token>),
+    Dot,
 }
 
 impl<'a> fmt::Debug for Token {
@@ -51,7 +52,9 @@ impl<'a> fmt::Debug for Token {
             &Token::TokenList(ref list) =>
                 result = result.and(write!(f, "{:?}", list)),
             &Token::QuoteToken(ref value) =>
-                result = result.and(write!(f, "'{:?}", value))
+                result = result.and(write!(f, "'{:?}", value)),
+            &Token::Dot =>
+                result = result.and(write!(f, " . "))
         }
         result
     }
@@ -70,7 +73,8 @@ impl Clone for Token {
             &Token::IntegerToken(value) => Token::IntegerToken(value),
             &Token::StringToken(ref value) => Token::StringToken(value.clone()),
             &Token::TokenList(ref list) => Token::TokenList(list.clone()),
-            &Token::QuoteToken(ref value) => Token::QuoteToken(value.clone())
+            &Token::QuoteToken(ref value) => Token::QuoteToken(value.clone()),
+            &Token::Dot => Token::Dot
         }
     }
 }
@@ -122,6 +126,9 @@ fn atom(token: &str) -> Token {
         Ok(value) => return Token::IntegerToken(value),
         _ => ()
     };
+    if token == "." {
+        return Token::Dot
+    }
     Token::str(token)
 }
 
@@ -495,13 +502,23 @@ fn make_quote(token: &Token) -> Value {
         &Token::IntegerToken(value) => Value::Integer(value),
         &Token::StringToken(ref value) => Value::Symbol(value.clone()),
         &Token::TokenList(ref list) => {
+            let mut list_iter = list.iter();
             let mut cur_pair = Value::EmptyList;
-            for sub_token in list.iter().rev() {
+            if list.len() >= 3 {
+                if let Token::Dot = list[list.len()-2] {
+                    if let Some(last) = list_iter.next_back() {
+                        cur_pair = make_quote(last);
+                        list_iter.next_back(); //Pop Dot off
+                    }
+                }
+            }
+            for sub_token in list_iter.rev() {
                 cur_pair = Value::Pair(Rc::new(make_quote(sub_token)), Rc::new(cur_pair))
             }
             cur_pair
         }
-        &Token::QuoteToken(ref value) => make_quote(value)
+        &Token::QuoteToken(ref value) => make_quote(value),
+        &Token::Dot => Value::Error(String::from("unexpected .")),
     }
 }
 
@@ -797,6 +814,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
     loop {
         //println!("eval_exp {:?}", token);
         let eval = match &*token {
+            &Token::Dot => Rc::new(Value::Error(String::from("unexpected ."))),
             &Token::IntegerToken(value) => Rc::new(Value::Integer(value)),
             &Token::StringToken(ref value) => match env.find(&value) {
                 Some(entry) => entry,
