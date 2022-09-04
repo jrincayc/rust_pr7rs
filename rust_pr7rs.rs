@@ -680,25 +680,19 @@ fn symbolp(list: Vec<Rc<Value>>) -> Rc<Value> {
     })
 }
 
-fn truish(test: Rc<Value>) -> bool {
-    match *test {
-        Value::Boolean(false) => false,
-        _ => true
-    }
-}
-
 fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, env: &REnv)
          -> Rc<Value>
 {
     let test_eval = eval_exp(test,env);
-    if truish(test_eval) {
-        Rc::new(Value::Partial(Rc::new(consequent.clone()), Rc::clone(env)))
-        //eval_exp(consequent, env)
-    } else {
-        match optional_alternate {
-            Some(alternate) => Rc::new(Value::Partial(Rc::new(alternate.clone()), Rc::clone(env))), //eval_exp(alternate, env),
-            None => Rc::new(Value::Undefined)
-        }
+    match *test_eval {
+        Value::Error(_) => test_eval,
+        Value::Boolean(false) =>
+            match optional_alternate {
+                Some(alternate) => Rc::new(Value::Partial(Rc::new(alternate.clone()), Rc::clone(env))), //eval_exp(alternate, env),
+                None => Rc::new(Value::Undefined)
+            },
+        _ =>
+            Rc::new(Value::Partial(Rc::new(consequent.clone()), Rc::clone(env)))
     }
 }
 
