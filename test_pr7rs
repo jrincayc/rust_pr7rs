@@ -111,6 +111,8 @@
 			    nonneg
 			    (cons (car numbers) neg))))))
   (loop numbers nonneg neg))
+(display '(Hello World!))
+(newline)
 ;from spec
 'struct
 (* 5 8)
