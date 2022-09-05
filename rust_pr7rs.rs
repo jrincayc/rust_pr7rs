@@ -30,7 +30,8 @@ use std::io;
 use std::io::Write;
 use std::collections::HashMap;
 use std::rc::Rc;
-
+use std::env;
+use std::fs;
 
 enum Token{
     IntegerToken(i64),
@@ -140,7 +141,7 @@ enum ParseOption {
 
 fn read_from_tokens<'a>(tokens: &Vec<&'a str>, index: &mut usize) -> ParseOption {
     if tokens.len() == 0 {
-        println!("Unexpected end of program");
+        //println!("Unexpected end of program");
         return ParseOption::None
     };
     //let mut index: usize = 0;
@@ -1004,14 +1005,27 @@ fn main() {
     let mut env: REnv = Rc::new(Env::new(init_env));
     let mut current_parse = String::new();
 
+    let args: Vec<String> = env::args().collect();
+
+    let repl = args.len() <= 1;
+
+    let mut infile: Box<dyn io::BufRead>  = if !repl {
+        match fs::File::open(args[1].clone()) {
+            Err(why) => panic!("couldn't read {}: {}", args[1], why),
+            Ok(file) => Box::new(io::BufReader::new(file)),
+        }
+    } else {
+        Box::new(io::stdin().lock())
+    };
+
     loop {
-        if current_parse.len() == 0 {
+        if current_parse.len() == 0 && repl {
             print!("> ");
             let _ = std::io::stdout().flush();
         }
         let mut line = String::new();
 
-        let input_result = io::stdin()
+        let input_result = infile
             .read_line(&mut line);
 
         match input_result {
@@ -1025,17 +1039,27 @@ fn main() {
                     ParseOption::Some(ref parsed) => {
                         let (new_env, value) = eval_both(parsed,&env);
                         env = new_env;
-                        println!("{:?}",value);
+                        if repl {
+                            println!("{:?}",value);
+                        } else {
+                            if let Value::Error(_) = &*value {
+                                println!("{:?}",value);
+                            }
+                        }
                         current_parse.clear();
                     },
                     ParseOption::Partial => { /*should get more input*/ },
                     ParseOption::None => {
-                        println!("Nothing");
+                        if repl {
+                            println!("Nothing");
+                        }
                         current_parse.clear();
                     }
                 }
             }
         }
     }
-    println!("");
+    if repl {
+        println!("");
+    }
 }

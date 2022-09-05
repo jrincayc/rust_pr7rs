@@ -1,5 +1,4 @@
-> Unexpected end of program
-Nothing
+> Nothing
 > 2
 > 6
 > 6
@@ -88,8 +87,7 @@ Nothing
 > (Hello World!)Undefined
 > 
 Undefined
-> Unexpected end of program
-Nothing
+> Nothing
 > struct
 > 40
 > expr
@@ -211,8 +209,7 @@ Nothing
 > #f
 > (5 7)
 > 120
-> Unexpected end of program
-Nothing
+> Nothing
 > Undefined
 > -1
 > -1
