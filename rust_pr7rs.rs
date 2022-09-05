@@ -575,16 +575,17 @@ fn cons<'a>(list: Vec<Rc<Value>>) -> Rc<Value> {
     })
 }
 
-fn eqp(list: Vec<Rc<Value>>) -> Rc<Value> {
+fn eqvp(list: Vec<Rc<Value>>) -> Rc<Value> {
     //Note, not completely r7rs compliant.
     match list.as_slice() {
         [first, second] => match [&**first, &**second] {
             [Value::Symbol(ref x),Value::Symbol(ref y)] => Rc::new(Value::Boolean(x == y)),
             [Value::Boolean(x),Value::Boolean(y)] => Rc::new(Value::Boolean(x == y)),
             [Value::EmptyList, Value::EmptyList] => Rc::new(Value::Boolean(true)),
+            [Value::Integer(x), Value::Integer(y)] => Rc::new(Value::Boolean(x == y)),
             [_, _] => Rc::new(Value::Boolean(false)),
         }
-        _ => Rc::new(Value::Error(String::from("eq? should have two arguments")))
+        _ => Rc::new(Value::Error(String::from("eqv? should have two arguments")))
     }
 }
 
@@ -984,7 +985,7 @@ fn main() {
     init_env.insert(String::from("null?"), Rc::new(Value::Function(nullp)));
     init_env.insert(String::from("zero?"),Rc::new(Value::Function(zerop)));
     init_env.insert(String::from("not"),Rc::new(Value::Function(not_fn)));
-    init_env.insert(String::from("eq?"), Rc::new(Value::Function(eqp)));
+    init_env.insert(String::from("eqv?"), Rc::new(Value::Function(eqvp)));
     init_env.insert(String::from("number?"), Rc::new(Value::Function(numberp)));
     init_env.insert(String::from("pair?"), Rc::new(Value::Function(pairp)));
     init_env.insert(String::from("boolean?"), Rc::new(Value::Function(booleanp)));
