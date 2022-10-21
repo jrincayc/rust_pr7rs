@@ -685,6 +685,33 @@ fn symbolp(list: Vec<Rc<Value>>) -> Rc<Value> {
     })
 }
 
+fn filter_env(list: Vec<Rc<Value>>) -> Rc<Value> {
+    twoarg(list, |first, second| {
+        match [&*first, &*second] {
+            [Value::Env(ref env), Value::Pair(_, _)] => {
+                if let Some(list) = pair_to_list(&second) {
+                    let mut filter_env: PartialEnv = PartialEnv::new();
+                    for item in list {
+                        if let Value::Symbol(ref value) = *item {
+                            if let Some(entry) = env.find(value) {
+                                filter_env.insert(String::from(value), entry);
+                            } else {
+                                return Rc::new(Value::Error(String::from("filter on non-found value")))
+                            }
+                        } else {
+                            return Rc::new(Value::Error(String::from("filter-env takes environment and a proper list with only symbols")))
+                        }
+                    }
+                    Rc::new(Value::Env(Rc::new(Env::new(filter_env))))
+                } else {
+                    Rc::new(Value::Error(String::from("filter-env takes environment and a proper list")))
+                }
+            },
+        _ => Rc::new(Value::Error(String::from("filter-env takes environment and list")))
+    }
+    })
+}
+
 
 fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, env: &REnv)
          -> Rc<Value>
@@ -1007,6 +1034,7 @@ fn main() {
     init_env.insert(String::from("apply"), Rc::new(Value::Function(apply)));
     init_env.insert(String::from("#t"),Rc::new(Value::Boolean(true)));
     init_env.insert(String::from("#f"),Rc::new(Value::Boolean(false)));
+    init_env.insert(String::from("filter-env"),Rc::new(Value::Function(filter_env)));
     //println!("initial env {:?}",env);
 
     let mut env: REnv = Rc::new(Env::new(init_env));

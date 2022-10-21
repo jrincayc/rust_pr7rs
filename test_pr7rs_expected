@@ -88,6 +88,8 @@
 > 
 Undefined
 > <environment {"x": 1} ...>
+> <environment {"x": 1} ...>
+> <environment {"y": 2} ...>
 > Nothing
 > struct
 > 40

@@ -114,6 +114,8 @@
 (display '(Hello World!))
 (newline)
 (let ((x 1)) (#env))
+(filter-env (let ((x 1) (y 2)) (#env)) '(x))
+(filter-env (let ((x 1) (y 2)) (#env)) '(y))
 ;from spec
 'struct
 (* 5 8)
