@@ -116,6 +116,9 @@
 (let ((x 1)) (#env))
 (filter-env (let ((x 1) (y 2)) (#env)) '(x))
 (filter-env (let ((x 1) (y 2)) (#env)) '(y))
+(define booenv (let ((boo 53)) (#env)))
+(let ((y 2)) (merge-env-in booenv) boo)
+(let ((boo 2)) (merge-env-in booenv) boo)
 ;from spec
 'struct
 (* 5 8)

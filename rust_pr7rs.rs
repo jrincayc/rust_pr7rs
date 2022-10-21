@@ -311,6 +311,28 @@ impl Env {
     }
 }
 
+fn flatten_env(orig: &REnv) -> PartialEnv {
+    match &orig.outer_env {
+        None => orig.inner.clone(),
+        Some(env) => {
+            let mut new_env: PartialEnv = flatten_env(env);
+            //new_env.extend(orig.inner.iter());
+            for (name, value) in &orig.inner {
+                new_env.insert(name.to_string(), Rc::clone(value));
+            }
+            new_env
+        }
+    }
+}
+
+
+fn merge_in(orig: REnv, add: REnv) -> REnv {
+    //Merge all variables in add into a new environment
+    let new_env: PartialEnv = flatten_env(&add);
+    Rc::new(Env::new_sub(new_env, orig))
+}
+
+
 
 struct Procedure {
     params: Vec<String>,
@@ -826,6 +848,15 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
                 }
                 Rc::new(Env::new_sub(new_env, Rc::clone(env)))
             },
+            [Token::StringToken(ref string), ref raw_var_value] if string == "merge-env-in" => {
+                let var_value = eval_exp(raw_var_value,env);
+                if let Value::Env(add_env) = &*var_value {
+                    merge_in(Rc::clone(env), Rc::clone(add_env))
+                } else {
+                    println!("Internal error, unexpected merge-env-in value");
+                    Rc::clone(env)
+                }
+            }
             _ => {
                 println!("Internal error, unexpected in define");
                 Rc::clone(env)
@@ -970,7 +1001,6 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                     transformed.extend(inits);
                     eval_exp(&Token::TokenList(transformed), &env)
                 }
-                
                 [] => Rc::new(Value::Undefined),
                 full_token =>
                     if let Some((head, tail)) = full_token.split_first() {

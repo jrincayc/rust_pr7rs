@@ -90,6 +90,9 @@ Undefined
 > <environment {"x": 1} ...>
 > <environment {"x": 1} ...>
 > <environment {"y": 2} ...>
+> Undefined
+> 53
+> 53
 > Nothing
 > struct
 > 40

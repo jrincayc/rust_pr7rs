@@ -23,11 +23,11 @@ import grabs a magic variable #libraries and finds the requested ones and runs m
   )
 ) ->
 (append2 #library
- (namelist 
+ (namelist
  (begin
   (import list2)
   stuff
-  (filter-env (get-env) (atom1 atom2 ...))
+  (filter-env #env (atom1 atom2 ...))
  )
  )
 )
