@@ -87,6 +87,7 @@
 > (Hello World!)Undefined
 > 
 Undefined
+> <environment {"x": 1} ...>
 > Nothing
 > struct
 > 40

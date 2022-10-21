@@ -208,6 +208,7 @@ enum Value {
     EmptyList,
     Procedure(Procedure),
     Partial(Rc<Token>, Rc<Env>), //Needs to be evaluated
+    Env(REnv),
     Error(String)
 }
 
@@ -247,6 +248,8 @@ impl<'a> fmt::Debug for Value {
                 result = result.and(write!(f, "<function>")),
             &Value::Procedure(_) =>
                 result = result.and(write!(f, "<procedure>")),
+            &Value::Env(ref env) =>
+                result = result.and(write!(f, "<environment {:?} ...>", env.inner)),
             /* &Value::RefFunction(_) =>
             result = result.and(write!(f, "show not implemented for ref function")),*/
             &Value::EmptyList => result = result.and(write!(f, "()")),
@@ -682,6 +685,7 @@ fn symbolp(list: Vec<Rc<Value>>) -> Rc<Value> {
     })
 }
 
+
 fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, env: &REnv)
          -> Rc<Value>
 {
@@ -817,6 +821,8 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
         let eval = match &*token {
             &Token::Dot => Rc::new(Value::Error(String::from("unexpected ."))),
             &Token::IntegerToken(value) => Rc::new(Value::Integer(value)),
+            &Token::StringToken(ref string) if string == "#env" =>
+                Rc::new(Value::Env(Rc::clone(env_orig))),
             &Token::StringToken(ref value) => match env.find(&value) {
                 Some(entry) => entry,
                 None => {//println!("Can't find {:?} in {:?}",value, env);
@@ -937,6 +943,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                     transformed.extend(inits);
                     eval_exp(&Token::TokenList(transformed), &env)
                 }
+                
                 [] => Rc::new(Value::Undefined),
                 full_token =>
                     if let Some((head, tail)) = full_token.split_first() {

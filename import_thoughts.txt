@@ -1,0 +1,34 @@
+Add environment as a Value.
+
+Add some basic functions:
+#env -> returns the environment as a value
+
+(merge-env-in env) -> merges env into current env (only allowed in eval_both)
+
+(filter-env env atomlist) -> returns environment with only atoms listed in atomlist
+
+
+import grabs a magic variable #libraries and finds the requested ones and runs merge-env-in on them.
+
+(import (scheme base)
+	(extra list)) ->
+(merge-env-in (assq (scheme base) #library))
+(merge-env-in (assq (extra list) #library))
+
+(define-library namelist
+  (export atom1 atom2 ...)
+  (import list2)
+  (begin
+    stuff
+  )
+) ->
+(append2 #library
+ (namelist 
+ (begin
+  (import list2)
+  stuff
+  (filter-env (get-env) (atom1 atom2 ...))
+ )
+ )
+)
+
