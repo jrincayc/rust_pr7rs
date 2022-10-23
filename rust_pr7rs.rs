@@ -734,6 +734,36 @@ fn filter_env(list: Vec<Rc<Value>>) -> Rc<Value> {
     })
 }
 
+fn has_identifierp(list: Vec<Rc<Value>>) -> Rc<Value> {
+    twoarg(list, |first, second| {
+        match [&*first, &*second] {
+            [Value::Env(ref env), Value::Symbol(ref name)] => {
+                if let Some(_) = env.find(name) {
+                    Rc::new(Value::Boolean(true))
+                } else {
+                    Rc::new(Value::Boolean(false))
+                }
+            }
+            _ => Rc::new(Value::Error(String::from("has-identifier? expects environment and symbol")))
+        }
+    })
+}
+
+fn lookup(list: Vec<Rc<Value>>) -> Rc<Value> {
+    twoarg(list, |first, second| {
+        match [&*first, &*second] {
+            [Value::Env(ref env), Value::Symbol(ref name)] => {
+                if let Some(value) = env.find(name) {
+                    Rc::clone(&value)
+                } else {
+                    Rc::new(Value::Error(String::from("lookup not found for ")+name))
+                }
+            }
+            _ => Rc::new(Value::Error(String::from("lookup expects environment and symbol")))
+        }
+    })
+}
+
 
 fn if_fn(test: &Token, consequent: &Token, optional_alternate: Option<&Token>, env: &REnv)
          -> Rc<Value>
@@ -1065,6 +1095,8 @@ fn main() {
     init_env.insert(String::from("#t"),Rc::new(Value::Boolean(true)));
     init_env.insert(String::from("#f"),Rc::new(Value::Boolean(false)));
     init_env.insert(String::from("filter-env"),Rc::new(Value::Function(filter_env)));
+    init_env.insert(String::from("has-identifier?"),Rc::new(Value::Function(has_identifierp)));
+    init_env.insert(String::from("lookup"),Rc::new(Value::Function(lookup)));
     //println!("initial env {:?}",env);
 
     let mut env: REnv = Rc::new(Env::new(init_env));

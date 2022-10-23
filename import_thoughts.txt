@@ -7,6 +7,10 @@ Add some basic functions:
 
 (filter-env env atomlist) -> returns environment with only atoms listed in atomlist
 
+Extra useful functions:
+(lookup environment symbol) -> returns value of identifier
+
+(has-identifier? environment symbol) -> returns true if environment has identifier
 
 import grabs a magic variable #libraries and finds the requested ones and runs merge-env-in on them.
 

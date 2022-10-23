@@ -117,6 +117,9 @@
 (filter-env (let ((x 1) (y 2)) (#env)) '(x))
 (filter-env (let ((x 1) (y 2)) (#env)) '(y))
 (define booenv (let ((boo 53)) (#env)))
+(has-identifier? booenv 'boo)
+(lookup booenv 'boo)
+(has-identifier? booenv 'noboo)
 (let ((y 2)) (merge-env-in booenv) boo)
 (let ((boo 2)) (merge-env-in booenv) boo)
 ;from spec

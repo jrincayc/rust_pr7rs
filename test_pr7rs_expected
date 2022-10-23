@@ -91,6 +91,9 @@ Undefined
 > <environment {"x": 1} ...>
 > <environment {"y": 2} ...>
 > Undefined
+> #t
+> 53
+> #f
 > 53
 > 53
 > Nothing
