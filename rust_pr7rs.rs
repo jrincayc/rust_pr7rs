@@ -787,6 +787,8 @@ fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
           &Token::TokenList(ref list) => match list as &[Token] {
               [Token::StringToken(ref string),Token::StringToken(ref _name), ref _raw_var_value] if string == "define" =>
                   (eval_dec(token, env), Rc::new(Value::Undefined)),
+              [Token::StringToken(ref string), ref _raw_var_value] if string == "merge-env-in" =>
+                  (eval_dec(token, env), Rc::new(Value::Undefined)),
               [Token::StringToken(ref string),ref raw_value] if string == "display" =>
               { print!("{:?}",eval_exp(raw_value, env));
                 (Rc::clone(env), Rc::new(Value::Undefined))},
@@ -914,7 +916,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
             &Token::StringToken(ref value) => match env.find(&value) {
                 Some(entry) => entry,
                 None => {//println!("Can't find {:?} in {:?}",value, env);
-                    Rc::new(Value::Error(String::from("token not found in env")))}
+                    Rc::new(Value::Error(String::from("token not found in env:")+value))}
             },
             &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
             &Token::TokenList(ref list) => match list as &[Token] {
