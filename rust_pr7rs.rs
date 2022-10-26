@@ -1069,6 +1069,14 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
     }
 }
 
+fn parse_dec(declaration: &str, env: &REnv) -> REnv
+{
+    if let ParseOption::Some(ref parsed) = parse(declaration) {
+        eval_dec(parsed, &env)
+    } else {
+        Rc::clone(env)
+    }
+}
 
 fn main() {
     let mut lines = vec![];
@@ -1103,6 +1111,17 @@ fn main() {
 
     let mut env: REnv = Rc::new(Env::new(init_env));
     let mut current_parse = String::new();
+    env = parse_dec("(define eqlist? (lambda (l1 l2)
+		    (cond ((and (null? l1) (null? l2)) #t)
+		    ((not (eqv? (car l1) (car l2))) #f)
+		    (else (eqlist? (cdr l1) (cdr l2))))
+		    ))", &env);
+    env = parse_dec("(define asslc (lambda (obj l)
+                    (cond ((null? l) #f)
+	            ((eqlist? obj (car (car l))) (cdr (car l)))
+	            (else (asslc obj (cdr l)))
+	            )))", &env);
+    env = parse_dec("(define lib-assoc-list '())", &env);
 
     let args: Vec<String> = env::args().collect();
 
