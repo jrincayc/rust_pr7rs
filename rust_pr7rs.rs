@@ -794,6 +794,12 @@ fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
                 (Rc::clone(env), Rc::new(Value::Undefined))},
               [Token::StringToken(ref string)] if string == "newline" =>
               { println!(""); (Rc::clone(env), Rc::new(Value::Undefined))},
+              [Token::StringToken(ref string), ref raw_value] if string == "import" => {
+                  let mut transformed: Vec<Token> = vec![Token::str("merge-env-in")];
+                  let asslc_list: Vec<Token> = vec![Token::str("asslc"),Token::QuoteToken(Box::new(raw_value.clone())),Token::str("lib-assoc-list")];
+                  transformed.push(Token::TokenList(asslc_list));
+                  eval_both(&Token::TokenList(transformed), &env)
+              }
               _ => (Rc::clone(env), eval_exp(token, env))
           }
           _ => (Rc::clone(env), eval_exp(token, env))
@@ -885,7 +891,7 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
                 if let Value::Env(add_env) = &*var_value {
                     merge_in(Rc::clone(env), Rc::clone(add_env))
                 } else {
-                    println!("Internal error, unexpected merge-env-in value");
+                    println!("Internal error, unexpected merge-env-in value {:?}", var_value);
                     Rc::clone(env)
                 }
             }
