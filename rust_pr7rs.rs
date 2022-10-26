@@ -922,7 +922,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
             &Token::StringToken(ref value) => match env.find(&value) {
                 Some(entry) => entry,
                 None => {//println!("Can't find {:?} in {:?}",value, env);
-                    Rc::new(Value::Error(String::from("token not found in env:")+value))}
+                    Rc::new(Value::Error(String::from("token not found in env: ")+value))}
             },
             &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
             &Token::TokenList(ref list) => match list as &[Token] {
