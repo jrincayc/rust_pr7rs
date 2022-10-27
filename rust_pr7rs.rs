@@ -800,6 +800,37 @@ fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
                   transformed.push(Token::TokenList(asslc_list));
                   eval_both(&Token::TokenList(transformed), &env)
               }
+              [Token::StringToken(ref string), ref name, ref export, ref _import, ref begin] if string == "define-library" => {
+                  let mut letpart:Vec<Token> = vec![Token::str("let"),Token::TokenList(Vec::new())];
+                  if let Token::TokenList(ref begin_list) = begin {
+                      for define_item in begin_list {
+                          if let Token::StringToken(ref _string) = define_item
+                          {
+                              //skip strings (like begin)
+                          } else {
+                              letpart.push(define_item.clone());
+                          }
+                      }
+                  } else {
+                      println!("unexpected begin {:?}", begin);
+                  }
+                  if let Token::TokenList(ref export_list) = export {
+                      let mut export_new_list: Vec<Token> = Vec::new();
+                      for index in 1..export_list.len() {
+                          export_new_list.push(export_list[index].clone());
+                      }
+                      let filter_list: Vec<Token> = vec![Token::str("filter-env"), Token::str("#env"), Token::QuoteToken(Box::new(Token::TokenList(export_new_list)))];
+                      letpart.push(Token::TokenList(filter_list));
+                  } else {
+                      println!("unexpected export {:?}", export);
+                  }
+                  let innercons: Vec<Token> = vec![Token::str("cons"),Token::QuoteToken(Box::new(name.clone())),Token::TokenList(letpart)];
+                  let midcons: Vec<Token> = vec![Token::str("cons"),Token::TokenList(innercons),Token::str("lib-assoc-list")];
+                  let outer: Vec<Token> =
+                      vec![Token::str("define"),Token::str("lib-assoc-list"),
+                           Token::TokenList(midcons)];
+                  eval_both(&Token::TokenList(outer), &env)
+              }
               _ => (Rc::clone(env), eval_exp(token, env))
           }
           _ => (Rc::clone(env), eval_exp(token, env))
