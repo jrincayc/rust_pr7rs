@@ -12,7 +12,7 @@
 				 (if (null? l) so_far (length_tail (cdr l) (+ 1 so_far)))
 				 ))
 	   (define ellength (lambda (l) (length_tail l 0)))
-	   (filter-env (#env) '(ellist? ellength))
+	   (filter-env #env '(ellist? ellength))
 	   )
 	 )
    lib-assoc-list
