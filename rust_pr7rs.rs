@@ -704,6 +704,8 @@ fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
           &Token::TokenList(ref list) => match list as &[Token] {
               [Token::StringToken(ref string),Token::StringToken(ref _name), ref _raw_var_value] if string == "define" =>
                   (eval_dec(token, env), Rc::new(Value::Undefined)),
+              [Token::StringToken(ref string), ref _raw_var_value] if string == "define-vars" =>
+                  (eval_dec(token, env), Rc::new(Value::Undefined)),
               [Token::StringToken(ref string),ref raw_value] if string == "display" =>
               { print!("{:?}",eval_exp(raw_value, env));
                 (Rc::clone(env), Rc::new(Value::Undefined))},
@@ -795,6 +797,24 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
                 }
                 Rc::new(Env::new_sub(new_env, Rc::clone(env)))
             },
+            [Token::StringToken(ref string), ref raw_var_value] if string == "define-vars" => {
+                let mut new_env: PartialEnv = PartialEnv::new();
+                let var_value = eval_exp(raw_var_value,env);
+                if let Some(list) = pair_to_list(&*var_value) {
+                    for item in list {
+                        println!("item {:?}", item);
+                        if let Value::Pair(ref car, ref cdr) = &*item {
+                            if let Value::Pair(ref value, _) = **cdr {
+                                if let Value::Symbol(ref name) = **car {
+                                    new_env.insert(name.clone(), Rc::clone(value));
+                                }
+                            }
+                        }
+                    }
+                }
+                Rc::new(Env::new_sub(new_env, Rc::clone(env)))
+            },
+
             _ => {
                 println!("Internal error, unexpected in define");
                 Rc::clone(env)

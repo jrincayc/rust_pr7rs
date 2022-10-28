@@ -1,0 +1,55 @@
+Add a declarer
+
+(define-vars define-list) where define list is a list of two item lists where the first item is the symbol and the second is the value
+
+It defines everything in the list
+
+(import (scheme base)
+	(extra list)) ->
+(define-vars (assq (scheme base) #library))
+(define-vars (assq (extra list) #library))
+
+(define-library namelist
+  (export atom1 atom2 ...)
+  (import list2)
+  (begin
+    stuff
+  )
+) ->
+(append2 #library
+ (namelist
+ (let ()
+  (import list2)
+  stuff
+  (list ('atom1 atom1) ('atom2 atom2) ...))
+ )
+ )
+)
+
+
+
+
+(define-library (extra list)
+  (export ellist? ellength)
+  (import (scheme base))
+  (begin
+    (define ellist? (lambda (l)
+		      (cond ((null? l) #t)
+			    ((not (pair? l)) #f)
+			    (else (ellist? (cdr l)))
+			    )
+		      ))
+    (define length_tail (lambda (l so_far)
+			       (if (null? l) so_far (length_tail (cdr l) (+ 1 so_far)))
+
+			       ))
+    (define ellength (lambda (l) (length_tail l 0)))
+    )
+  )
+(import (scheme base)
+	(scheme write)
+	(extra list))
+(display '(list example))
+(display (ellist? '(a b)))
+(display (ellist? 'a))
+(display (ellength '(a b)))
