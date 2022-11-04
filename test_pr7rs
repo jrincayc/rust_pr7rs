@@ -23,6 +23,8 @@
 (define fact (lambda (n) (if (< n 2) 1 (* n (fact (- n 1))))))
 (define S 5)
 (foo)
+(null? foo1)
+(+ 1 foo2)
 (fact 10)
 (((lambda (mk-length) (mk-length mk-length)) (lambda (mk-length) (lambda (l) (if (null? l) 0 (+ 1 ((mk-length mk-length) (cdr l))))))) (list 1 2 3))
 (define Y (lambda (le) ((lambda (f) (f f)) (lambda (f) (le (lambda (x) ((f f) x)))))))

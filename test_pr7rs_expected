@@ -23,6 +23,8 @@
 > Undefined
 > Undefined
 > Error(token not found in env: foo)
+> Error(token not found in env: foo1)
+> Error(token not found in env: foo2)
 > 3628800
 > 3
 > Undefined

@@ -406,7 +406,11 @@ impl<'a> Clone for Procedure {
 fn onearg(list: Vec<Rc<Value>>, func: fn(Rc<Value>) -> Rc<Value>) -> Rc<Value>
 {
     if list.len() == 1 {
-        func(Rc::clone(&list[0]))
+        if let Value::Error(_) = *list[0] {
+            Rc::clone(&list[0])
+        } else {
+            func(Rc::clone(&list[0]))
+        }
     } else {
         Rc::new(Value::Error(String::from("wrong number of arguments (expected 1)")))
     }
@@ -415,7 +419,13 @@ fn onearg(list: Vec<Rc<Value>>, func: fn(Rc<Value>) -> Rc<Value>) -> Rc<Value>
 fn twoarg(list: Vec<Rc<Value>>, func: fn(Rc<Value>, Rc<Value>) -> Rc<Value>) -> Rc<Value>
 {
     if list.len() == 2 {
-        func(Rc::clone(&list[0]), Rc::clone(&list[1]))
+        if let Value::Error(_) = *list[0] {
+            Rc::clone(&list[0])
+        } else  if let Value::Error(_) = *list[1] {
+            Rc::clone(&list[1])
+        } else {
+            func(Rc::clone(&list[0]), Rc::clone(&list[1]))
+        }
     } else {
         Rc::new(Value::Error(String::from("wrong number of arguments (expected 1)")))
     }
