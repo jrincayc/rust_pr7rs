@@ -533,16 +533,6 @@ fn nullp(list: Vec<Rc<Value>>) -> Rc<Value>{
     })
 }
 
-fn zerop(list: Vec<Rc<Value>>) -> Rc<Value> {
-    onearg(list, |value| {
-        if let Value::Integer(x) = *value {
-            Rc::new(Value::Boolean(x == 0))
-        } else {
-            Rc::new(Value::Error(String::from("can't zero? on non single number")))
-        }
-    })
-}
-
 fn not_fn(list: Vec<Rc<Value>>) -> Rc<Value> {
     onearg(list, |value| {
         match *value {
@@ -984,12 +974,10 @@ fn main() {
     init_env.insert(String::from("="),Rc::new(Value::Function(num_equal)));
     init_env.insert(String::from("<"),Rc::new(Value::Function(num_increase)));
     init_env.insert(String::from(">"),Rc::new(Value::Function(num_decrease)));
-    init_env.insert(String::from("list"),Rc::new(Value::Function(make_list)));
     init_env.insert(String::from("car"),Rc::new(Value::Function(car)));
     init_env.insert(String::from("cdr"),Rc::new(Value::Function(cdr)));
     init_env.insert(String::from("cons"),Rc::new(Value::Function(cons)));
     init_env.insert(String::from("null?"), Rc::new(Value::Function(nullp)));
-    init_env.insert(String::from("zero?"),Rc::new(Value::Function(zerop)));
     init_env.insert(String::from("not"),Rc::new(Value::Function(not_fn)));
     init_env.insert(String::from("eqv?"), Rc::new(Value::Function(eqvp)));
     init_env.insert(String::from("number?"), Rc::new(Value::Function(numberp)));
