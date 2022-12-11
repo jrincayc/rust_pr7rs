@@ -1,0 +1,3 @@
+[submodule "r7rs-pico-spec"]
+	path = r7rs-pico-spec
+	url = https://github.com/jrincayc/r7rs-pico-spec.git
