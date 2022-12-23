@@ -480,7 +480,13 @@ fn sub(list: Vec<Rc<Value>>) -> Rc<Value> {
         None => Rc::new(Value::Error(String::from("can't subtract non numbers"))),
         Some(int_list) => match int_list.as_slice() {
             [] => Rc::new(Value::Error(String::from("no number for subtract"))),
-            [value] => Rc::new(Value::Integer(-value)),
+            [value] => {
+                let result = value.checked_neg();
+                match result {
+                    Some(i) => Rc::new(Value::Integer(i)),
+                    None => Rc::new(Value::Boolean(false))
+                }
+            }
             [f,s] => {
                 let result = f.checked_sub(*s);
                 match result {
