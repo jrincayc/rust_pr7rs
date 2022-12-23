@@ -446,7 +446,14 @@ fn to_number_list(list: Vec<Rc<Value>>) -> Option<Vec<i64>> {
 fn add(list: Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
-            [Value::Integer(f), Value::Integer(s)] => Rc::new(Value::Integer(f + s)),
+            [Value::Integer(f), Value::Integer(s)] =>
+            {
+                let result = f.checked_add(*s);
+                match result {
+                    Some(i) => Rc::new(Value::Integer(i)),
+                    None => Rc::new(Value::Boolean(false))
+                }
+            }
             _ => Rc::new(Value::Error(String::from("can't add non numbers")))
         }
     })
@@ -455,7 +462,14 @@ fn add(list: Vec<Rc<Value>>) -> Rc<Value> {
 fn mult(list:  Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
-            [Value::Integer(f), Value::Integer(s)] => Rc::new(Value::Integer(f * s)),
+            [Value::Integer(f), Value::Integer(s)] =>
+            {
+                let result = f.checked_mul(*s);
+                match result {
+                    Some(i) => Rc::new(Value::Integer(i)),
+                    None => Rc::new(Value::Boolean(false))
+                }
+            }
             _ => Rc::new(Value::Error(String::from("can't mult non numbers")))
         }
     })
@@ -467,7 +481,13 @@ fn sub(list: Vec<Rc<Value>>) -> Rc<Value> {
         Some(int_list) => match int_list.as_slice() {
             [] => Rc::new(Value::Error(String::from("no number for subtract"))),
             [value] => Rc::new(Value::Integer(-value)),
-            [f,s] => Rc::new(Value::Integer(f-s)),
+            [f,s] => {
+                let result = f.checked_sub(*s);
+                match result {
+                    Some(i) => Rc::new(Value::Integer(i)),
+                    None => Rc::new(Value::Boolean(false))
+                }
+            }
             _ => Rc::new(Value::Error(String::from("unexpected subtract")))
         }
     }
