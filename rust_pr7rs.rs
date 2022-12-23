@@ -443,17 +443,19 @@ fn to_number_list(list: Vec<Rc<Value>>) -> Option<Vec<i64>> {
     Some(ret_list)
 }
 
+fn check_arith_to_value(result: Option<i64>) -> Value
+{
+    match result {
+        Some(i) => Value::Integer(i),
+        None => Value::Boolean(false)
+    }
+}
+
 fn add(list: Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
             [Value::Integer(f), Value::Integer(s)] =>
-            {
-                let result = f.checked_add(*s);
-                match result {
-                    Some(i) => Rc::new(Value::Integer(i)),
-                    None => Rc::new(Value::Boolean(false))
-                }
-            }
+                Rc::new(check_arith_to_value(f.checked_add(*s))),
             _ => Rc::new(Value::Error(String::from("can't add non numbers")))
         }
     })
@@ -463,13 +465,7 @@ fn mult(list:  Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
             [Value::Integer(f), Value::Integer(s)] =>
-            {
-                let result = f.checked_mul(*s);
-                match result {
-                    Some(i) => Rc::new(Value::Integer(i)),
-                    None => Rc::new(Value::Boolean(false))
-                }
-            }
+                Rc::new(check_arith_to_value(f.checked_mul(*s))),
             _ => Rc::new(Value::Error(String::from("can't mult non numbers")))
         }
     })
@@ -480,20 +476,8 @@ fn sub(list: Vec<Rc<Value>>) -> Rc<Value> {
         None => Rc::new(Value::Error(String::from("can't subtract non numbers"))),
         Some(int_list) => match int_list.as_slice() {
             [] => Rc::new(Value::Error(String::from("no number for subtract"))),
-            [value] => {
-                let result = value.checked_neg();
-                match result {
-                    Some(i) => Rc::new(Value::Integer(i)),
-                    None => Rc::new(Value::Boolean(false))
-                }
-            }
-            [f,s] => {
-                let result = f.checked_sub(*s);
-                match result {
-                    Some(i) => Rc::new(Value::Integer(i)),
-                    None => Rc::new(Value::Boolean(false))
-                }
-            }
+            [value] => Rc::new(check_arith_to_value(value.checked_neg())),
+            [f,s] => Rc::new(check_arith_to_value(f.checked_sub(*s))),
             _ => Rc::new(Value::Error(String::from("unexpected subtract")))
         }
     }
