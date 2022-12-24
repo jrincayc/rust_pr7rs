@@ -121,12 +121,28 @@ fn tokenize(chars: &str) -> Vec<&str> {
     return tokens;
 }
 
+fn is_number(word: &str) -> bool
+{
+    let mut chars = word.chars();
+    match chars.next() {
+        Some('0' ..= '9') => return true,
+        Some('+' | '-') => (),
+        _ => return false
+    }
+    match chars.next() {
+        Some('0' ..= '9') => return true,
+        _ => return false
+    }
+}
+
 fn atom(token: &str) -> Token {
-    let int_result = token.parse::<i64>();
-    match int_result {
-        Ok(value) => return Token::IntegerToken(value),
-        _ => ()
-    };
+    if is_number(token) {
+        let int_result = token.parse::<i64>();
+        match int_result {
+            Ok(value) => return Token::IntegerToken(value),
+            _ => return Token::StringToken(format!("invalid_number_{}",token).clone()),
+        };
+    }
     if token == "." {
         return Token::Dot
     }
