@@ -121,12 +121,28 @@ fn tokenize(chars: &str) -> Vec<&str> {
     return tokens;
 }
 
+fn is_number(word: &str) -> bool
+{
+    let mut chars = word.chars();
+    match chars.next() {
+        Some('0' ..= '9') => return true,
+        Some('+' | '-') => (),
+        _ => return false
+    }
+    match chars.next() {
+        Some('0' ..= '9') => return true,
+        _ => return false
+    }
+}
+
 fn atom(token: &str) -> Token {
-    let int_result = token.parse::<i64>();
-    match int_result {
-        Ok(value) => return Token::IntegerToken(value),
-        _ => ()
-    };
+    if is_number(token) {
+        let int_result = token.parse::<i64>();
+        match int_result {
+            Ok(value) => return Token::IntegerToken(value),
+            _ => return Token::StringToken(format!("invalid_number_{}",token).clone()),
+        };
+    }
     if token == "." {
         return Token::Dot
     }
@@ -443,10 +459,19 @@ fn to_number_list(list: Vec<Rc<Value>>) -> Option<Vec<i64>> {
     Some(ret_list)
 }
 
+fn check_arith_to_value(result: Option<i64>) -> Value
+{
+    match result {
+        Some(i) => Value::Integer(i),
+        None => Value::Boolean(false)
+    }
+}
+
 fn add(list: Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
-            [Value::Integer(f), Value::Integer(s)] => Rc::new(Value::Integer(f + s)),
+            [Value::Integer(f), Value::Integer(s)] =>
+                Rc::new(check_arith_to_value(f.checked_add(*s))),
             _ => Rc::new(Value::Error(String::from("can't add non numbers")))
         }
     })
@@ -455,7 +480,8 @@ fn add(list: Vec<Rc<Value>>) -> Rc<Value> {
 fn mult(list:  Vec<Rc<Value>>) -> Rc<Value> {
     twoarg(list, |first, second| {
         match [&*first, &*second] {
-            [Value::Integer(f), Value::Integer(s)] => Rc::new(Value::Integer(f * s)),
+            [Value::Integer(f), Value::Integer(s)] =>
+                Rc::new(check_arith_to_value(f.checked_mul(*s))),
             _ => Rc::new(Value::Error(String::from("can't mult non numbers")))
         }
     })
@@ -466,8 +492,8 @@ fn sub(list: Vec<Rc<Value>>) -> Rc<Value> {
         None => Rc::new(Value::Error(String::from("can't subtract non numbers"))),
         Some(int_list) => match int_list.as_slice() {
             [] => Rc::new(Value::Error(String::from("no number for subtract"))),
-            [value] => Rc::new(Value::Integer(-value)),
-            [f,s] => Rc::new(Value::Integer(f-s)),
+            [value] => Rc::new(check_arith_to_value(value.checked_neg())),
+            [f,s] => Rc::new(check_arith_to_value(f.checked_sub(*s))),
             _ => Rc::new(Value::Error(String::from("unexpected subtract")))
         }
     }
