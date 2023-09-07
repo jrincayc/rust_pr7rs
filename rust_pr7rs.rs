@@ -334,7 +334,17 @@ struct Procedure {
 }
 
 impl Procedure {
-    fn new(params: Vec<String>, body: Rc<Token>, outer_env: REnv) -> Procedure {
+    fn new(params: Vec<String>, body: Rc<Token>, outer_env: REnv, fixed_num: bool, declarations: Vec<Rc<Token>>) -> Procedure {
+        Procedure {
+            params: params,
+            fixed_num: fixed_num,
+            body: body,
+            declarations: declarations,
+            outer_env: outer_env
+        }
+    }
+
+    fn new_no_dec(params: Vec<String>, body: Rc<Token>, outer_env: REnv) -> Procedure {
         Procedure {
             params: params,
             fixed_num: false,
@@ -406,7 +416,7 @@ impl Procedure {
 
 impl<'a> Clone for Procedure {
     fn clone(&self) -> Procedure {
-        Procedure::new(self.params.clone(), self.body.clone(), self.outer_env.clone())
+        Procedure::new(self.params.clone(), self.body.clone(), self.outer_env.clone(), self.fixed_num, self.declarations.clone())
     }
 }
 
@@ -790,14 +800,23 @@ fn use_y_combiner(procedure: &Procedure, name: String) -> Rc<Value> {
     // ((lambda (phi) new_tokens) (lambda (name) (lambda (parameters) body)))
     //Now need to create new_tokens as a procedure
     //TODO: Not sure if we should just pass a blank environment here.
-    let y_proc = Procedure::new(vec![String::from("phi")], Rc::new(new_tokens), Rc::clone(&procedure.outer_env));
-    let new_lambda = if procedure.fixed_num {
-        Token::TokenList(vec![Token::str("lambda"),parameter_tokens[0].clone(),(*procedure.body).clone()])
-    } else {
-        Token::TokenList(vec![Token::str("lambda"),Token::TokenList(parameter_tokens),(*procedure.body).clone()])
+    let y_proc = Procedure::new_no_dec(vec![String::from("phi")], Rc::new(new_tokens), Rc::clone(&procedure.outer_env));
+    let new_lambda = {
+        let mut token_vec: Vec<Token>  = if procedure.fixed_num {
+            vec![Token::str("lambda"),parameter_tokens[0].clone()]
+        } else {
+            vec![Token::str("lambda"),Token::TokenList(parameter_tokens)]
+        };
+        if procedure.declarations.len() > 0 {
+            for token in &procedure.declarations {
+                token_vec.push((**token).clone());
+            }
+        }
+        token_vec.push((*procedure.body).clone());
+        Token::TokenList(token_vec)
     };
     //Evaluate y combiner on original procedure, and return result
-    let orig_part = Procedure::new(vec![name.clone()], Rc::new(new_lambda), Rc::clone(&procedure.outer_env)); //Rc::clone(&procedure.body)
+    let orig_part = Procedure::new_no_dec(vec![name.clone()], Rc::new(new_lambda), Rc::clone(&procedure.outer_env)); //Rc::clone(&procedure.body)
     //stuff into environment and eval
     let mut new_env_part : PartialEnv = PartialEnv::new();
     new_env_part.insert(String::from("Y"), Rc::new(Value::Procedure(y_proc)));
@@ -921,7 +940,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                                 _ => return Rc::new(Value::Error(String::from("Non string in lambda parameter list")))
                             }
                         }
-                        Rc::new(Value::Procedure(Procedure::new(param_eval,Rc::new(body.clone()),env.clone())))
+                        Rc::new(Value::Procedure(Procedure::new_no_dec(param_eval,Rc::new(body.clone()),env.clone())))
                     },
                 [Token::StringToken(ref string),Token::TokenList(ref parameters), middle @ .., ref body]
                     if string == "lambda" => {

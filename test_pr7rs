@@ -122,6 +122,18 @@
 92233720368547758074
 (display '(Hello World!))
 (newline)
+(define a
+  (lambda (x)
+    (define b
+      (lambda (x) (a (- x 1))))
+    (if (< x 1) 0
+	(b (- x 1)))))
+(a 3)
+(define c
+  (lambda (x)
+    (define b 2)
+    (+ x b)))
+(c 2)
 ;from spec
 'struct
 (* 5 8)
