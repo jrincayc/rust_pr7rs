@@ -23,7 +23,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#![warn(rust_2024_incompatible_pat)]
 extern crate core;
 use core::fmt;
 use std::io;
@@ -616,7 +616,7 @@ fn eqvp(list: Vec<Rc<Value>>) -> Rc<Value> {
     //Note, not completely r7rs compliant.
     match list.as_slice() {
         [first, second] => match [&**first, &**second] {
-            [Value::Symbol(ref x),Value::Symbol(ref y)] => Rc::new(Value::Boolean(x == y)),
+            [Value::Symbol(x),Value::Symbol(y)] => Rc::new(Value::Boolean(x == y)),
             [Value::Boolean(x),Value::Boolean(y)] => Rc::new(Value::Boolean(x == y)),
             [Value::EmptyList, Value::EmptyList] => Rc::new(Value::Boolean(true)),
             [Value::Integer(x), Value::Integer(y)] => Rc::new(Value::Boolean(x == y)),
@@ -665,7 +665,7 @@ fn procedurep(list: Vec<Rc<Value>>) -> Rc<Value> {
 }
 
 fn pair_to_list(pair: &Value) -> Option<Vec<Rc<Value>>> {
-    if let Value::Pair(ref car, ref cdr) = pair {
+    if let Value::Pair(car, cdr) = pair {
         let mut cur_cdr = cdr;
         let mut done = false;
         let mut list: Vec<Rc<Value>> = vec![Rc::clone(car)];
@@ -738,12 +738,12 @@ fn eval_both<'a, 'b, 'c>(token: &Token, env: &REnv) -> (REnv, Rc<Value>)
 {
       match token {
           &Token::TokenList(ref list) => match list as &[Token] {
-              [Token::StringToken(ref string),Token::StringToken(ref _name), ref _raw_var_value] if string == "define" =>
+              [Token::StringToken(string),Token::StringToken(_name), _raw_var_value] if string == "define" =>
                   (eval_dec(token, env), Rc::new(Value::Undefined)),
-              [Token::StringToken(ref string),ref raw_value] if string == "display" =>
+              [Token::StringToken(string),raw_value] if string == "display" =>
               { print!("{:?}",eval_exp(raw_value, env));
                 (Rc::clone(env), Rc::new(Value::Undefined))},
-              [Token::StringToken(ref string)] if string == "newline" =>
+              [Token::StringToken(string)] if string == "newline" =>
               { println!(""); (Rc::clone(env), Rc::new(Value::Undefined))},
               _ => (Rc::clone(env), eval_exp(token, env))
           }
@@ -830,7 +830,7 @@ fn eval_dec<'a, 'b, 'c>(token: &Token, env: &REnv) -> REnv
 {
     match token {
         &Token::TokenList(ref list) => match list as &[Token] {
-            [Token::StringToken(ref string),Token::StringToken(ref name), ref raw_var_value] if string == "define" => {
+            [Token::StringToken(string),Token::StringToken(name), raw_var_value] if string == "define" => {
                 let mut new_env: PartialEnv = PartialEnv::new();
                 let var_value = eval_exp(raw_var_value,env);
                 if let Value::Procedure(procedure) = &*var_value {
@@ -869,14 +869,14 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
             },
             &Token::QuoteToken(ref value) => Rc::new(make_quote(value)),
             &Token::TokenList(ref list) => match list as &[Token] {
-                [Token::StringToken(ref string), ref test, ref consequent, ref alternate] if string == "if" => {
+                [Token::StringToken(string), test, consequent, alternate] if string == "if" => {
                     if_fn(test, consequent, Some(alternate), &env)
                 },
-                [Token::StringToken(ref string), ref test, ref consequent] if string == "if" => {
+                [Token::StringToken(string), test, consequent] if string == "if" => {
                     if_fn(test, consequent, None, &env)
                 },
-                [Token::StringToken(ref string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
-                [Token::StringToken(ref string), Token::TokenList(ref test1), ..] if string == "cond" && test1.len() == 2 =>
+                [Token::StringToken(string),..] if string == "if"  => Rc::new(Value::Error(String::from("if missing a bit"))),
+                [Token::StringToken(string), Token::TokenList(test1), ..] if string == "cond" && test1.len() == 2 =>
                 {
                     let mut in_else = false;
                     if let Token::StringToken(ref cond_start) = test1[0]  {
@@ -893,21 +893,21 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         if_fn(&test1[0], &test1[1], None, &env)
                     }
                 },
-                [Token::StringToken(ref string)] if string == "and" =>
+                [Token::StringToken(string)] if string == "and" =>
                     Rc::new(Value::Boolean(true)),
-                [Token::StringToken(ref string), ref test1] if string == "and" => eval_exp(test1, &env),
-                [Token::StringToken(ref string), ref test1, ..] if string == "and" =>
+                [Token::StringToken(string), test1] if string == "and" => eval_exp(test1, &env),
+                [Token::StringToken(string), test1, ..] if string == "and" =>
                 {
                     let mut rest:Vec<Token> = Vec::new();
                     rest.push(Token::str("and"));
                     rest.extend_from_slice(&list[2..]);
                     if_fn(&test1, &Token::TokenList(rest), Some(&Token::str("#f")), &env)
                 },
-                [Token::StringToken(ref string)] if string == "or" =>
+                [Token::StringToken(string)] if string == "or" =>
                     Rc::new(Value::Boolean(false)),
-                [Token::StringToken(ref string), ref test1] if string == "or" =>
+                [Token::StringToken(string), test1] if string == "or" =>
                     eval_exp(test1, &env),
-                [Token::StringToken(ref string), ref test1, rest @ ..] if string == "or" =>
+                [Token::StringToken(string), test1, rest @ ..] if string == "or" =>
                 {
                     let mut transformed:Vec<Token> = vec![Token::str("let")];
                     transformed.push(Token::TokenList(vec![
@@ -921,17 +921,17 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         Token::TokenList(rest_or)]));
                     eval_exp(&Token::TokenList(transformed), &env)
                 }
-                [Token::StringToken(ref string), Token::StringToken(ref param), ref body] if string == "lambda" => {
+                [Token::StringToken(string), Token::StringToken(param), body] if string == "lambda" => {
                     Rc::new(Value::Procedure(Procedure::new_single(String::from(param),Rc::new(body.clone()),env.clone())))
                 }
-                [Token::StringToken(ref string), Token::StringToken(ref param), middle @ .., ref body] if string == "lambda" => {
+                [Token::StringToken(string), Token::StringToken(param), middle @ .., body] if string == "lambda" => {
                     let mut middle_vec: Vec<Rc<Token>> = Vec::new();
                     for dec in middle {
                         middle_vec.push(Rc::new(dec.clone()));
                     }
                     Rc::new(Value::Procedure(Procedure::new_single_with_dec(String::from(param),Rc::new(body.clone()),middle_vec,env.clone())))
                 }
-                [Token::StringToken(ref string),Token::TokenList(ref parameters), ref body]
+                [Token::StringToken(string),Token::TokenList(parameters), body]
                     if string == "lambda" => {
                         let mut param_eval: Vec<String> = vec![];
                         for item in parameters.iter() {
@@ -942,7 +942,7 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         }
                         Rc::new(Value::Procedure(Procedure::new_no_dec(param_eval,Rc::new(body.clone()),env.clone())))
                     },
-                [Token::StringToken(ref string),Token::TokenList(ref parameters), middle @ .., ref body]
+                [Token::StringToken(string),Token::TokenList(parameters), middle @ .., body]
                     if string == "lambda" => {
                         let mut middle_vec: Vec<Rc<Token>> = Vec::new();
                         for dec in middle {
@@ -957,10 +957,10 @@ fn eval_exp<'a,'b, 'c>(token_orig: &Token, env_orig: &REnv)
                         }
                         Rc::new(Value::Procedure(Procedure::new_with_dec(param_eval,Rc::new(body.clone()), middle_vec, env.clone())))
                     },
-                [Token::StringToken(ref string),datum] if string == "quote" => {
+                [Token::StringToken(string),datum] if string == "quote" => {
                     Rc::new(make_quote(datum))
                 }
-                [Token::StringToken(ref string), Token::TokenList(var_inits), body @ ..] if string == "let" => {
+                [Token::StringToken(string), Token::TokenList(var_inits), body @ ..] if string == "let" => {
                     let mut vars: Vec<Token> = Vec::new();
                     let mut inits: Vec<Token> = Vec::new();
                     for var_init in var_inits {
